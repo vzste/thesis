@@ -1,18 +1,20 @@
 ---
-title: "Thesis Reticulate Draft 2"
+title: "Main"
 author: "Stella Veazey"
-date: "10/10/2019"
+date: "11/6/2019"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, python=reticulate::eng_python)
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-setwd("~/Desktop/Projects/thesis")
+setwd("~/Repositories/thesis")
 library(reticulate)
 source_python("GSfunction.py")
+source("DataGeneration.R")
+source("Performance.R")
 library(mvtnorm)
 library(BBmisc)
 library(MatchIt)
@@ -76,86 +78,9 @@ import multiprocessing as mp
 import statistics
 ```
 
-Generate data
+Generate Data
 
 ```{r}
-set.seed(107)
-### generating data
-sigma <- matrix(c(1, 0, 0, 0, .2, 0, 0, 0, 0, 0,
-                  0, 1, 0, 0, 0, .9, 0, 0, 0, 0,
-                  0, 0, 1, 0, 0, 0, 0, .2, 0, 0,
-                  0, 0, 0, 1, 0, 0, 0, 0, .9, 0,
-                  .2, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-                  0, .9, 0, 0, 0, 1, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
-                  0, 0, .2, 0, 0, 0, 0, 1, 0, 0,
-                  0, 0, 0, .9, 0, 0, 0, 0, 1, 0,
-                  0, 0, 0, 0, 0, 0, 0, 0, 0, 1), 
-                ncol=10)
-
-sims <- function(sigma, n=10000, dichotomize = c(1, 3, 6, 8, 9)) {
-  x <- rmvnorm(n=n, mean=rep(0, length=10), sigma=sigma)
-  x <- as.data.frame(x)
-  
-  a0 <- -1.897
-  a1 <- .8
-  a2 <- -0.25
-  a3 <- 0.6
-  a4 <- -.4
-  a5 <- -.8
-  a6 <- -.5
-  a7 <- .7
-  
-  b0 <- -1.386
-  b1 <- .3
-  b2 <- -.36
-  b3 <- -.73
-  b4 <- -.2
-  b5 <- .71
-  b6 <- -.19
-  b7 <- .26
-  
-  gamma <- -.4
-  
-  # true propensity score
-  # scenario A: additivity and linearity
-  x$lPRz <- a0 + a1*x[, 1] + a2*x[, 2] + a3*x[, 3] + a4*x[, 4] + a5*x[, 5] + a6*x[, 6] + a7*x[, 7]
-  # convert to probability
-  x$PRz <- exp(x$lPRz)/(1+exp(x$lPRz))
-  x$PRz <- 1/(1 + exp(-(a0 + a1*x[, 1] + a2*x[, 2] + a3*x[, 3] + a4*x[, 4] + a5*x[, 5] + a6*x[, 6] + a7*x[, 7])))
-  
-  
-  # assign treatment based on probability
-  x$trt1 <- rep(NA, length(x$PRz))
-  for (i in 1:length(x$PRz)) {
-    u <- runif(n=1, min=0, max=1)
-    x$trt1[i] <- ifelse(x$PRz[i] >= u, 1, 0)
-  }
-  # for (i in 1:length(x$PRz)) {
-  #   x$trt1[i] <- rbinom(1, 1, prob=x$PRz[i])
-  # }
-   #x$trt1 <- round(x$PRz)
-  
-  
-  # true outcomes
-  # scenario A: additivity and linearity
-  x$error <- rnorm(n, 0, .1)
-  x$y1 <- b0 + b1*x[, 1] + b2*x[, 2] + b3*x[, 3] + b4*x[, 4] + b5*x[, 8] + b6*x[, 9] + b7*x[, 10] + gamma*x$trt1 + x$error
-  
-  if (!is.null(dichotomize)){
-    for (i in dichotomize) {
-      x[, i] <- ifelse(x[,i] > sample(x[,i], 1), 1, 0)
-    }
-  }
-  df <- as.data.frame(cbind(x$y1, x[,1:10], x$trt1, x$PRz))
-  names(df)[1] <- "y1"
-  #names(df)[12] <- "trtRound"
-  names(df)[12] <- "trt1"
-  names(df)[13] <- "ps"
-
-  return(df)
-}
-
 # No dichotomized
 df1 <- as.data.frame(sims(sigma, n=10000, dichotomize = NULL))
 write.csv(df1, "sim0.csv")
@@ -166,11 +91,10 @@ prop.table(table(df1$trt1))
 set.seed(67)
 df2 <- as.data.frame(sims(sigma, dichotomize = c(1,3)))
 write.csv(df2, "sim2.csv")
-
 ```
 
 
-Models
+Fit Models
 
 
 ```{r}
@@ -248,6 +172,7 @@ outcomeCtrl <- function(x){
   return(out)
 }
 ```
+
 
 Wrapper functions and selecting observation to analyze
 
@@ -336,49 +261,6 @@ def gsAll(x):
 ```
 
 
-
-```{python}
-
-# def gsAll(x):
-obs1 = np.asarray(tuple((r.dftest1).iloc[int(3),:]))
-obs1 = obs1[1:11]
-obs1a = np.asarray(obs1).reshape(1, -1)
-obs1a = obs1a[0]
-#     print("pre main")
-#     main = gs_main(X=r.X_test, y=r.y_test, treat=r.trt_test, score_function=r.score_function, obs_to_interprete=obs1a, propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, cat=None, idx=int(x))
-#     return(main)
-
-obs1a[r.outcomeIndex]
-
-```
-
-
-
-```{python}
-X=r.X_test
-y=r.y_test
-treat=r.trt_test
-score_function=r.score_function
-observation=np.asarray(r.observation)
-obs_to_interprete=np.asarray(observation[1:11]).reshape(1, -1)
-propensityIndex=r.propensityIndex[0]
-propensityIndex=r.propensityIndex[0]
-outcomeIndex=r.outcomeIndex[0]
-idx=r.idx
-
-obs1 = r.dftest1.iloc[4,:]
-print(obs1)
-obs2 = obs1[1:11]
-obs2 = np.asarray(obs2).reshape(1, -1)
-print(obs2)
-type(obs2)
-
-obs_to_interprete=obs2
-
-
-```
-
-
 ```{r}
 
 numCores <- detectCores()
@@ -420,18 +302,16 @@ for (i in 1:length(indices)){
 
 
 ```{r}
-# advs2 <- list()
-# for (i in 1:length(adv)) {
-#   if (length(adv[[i]][[1]]) > 1) {
-#     z <- llply(adv[[i]][[1]], function(x) {
-#       dist(rbind(x[-11], og[[i]][2:11]))
-#     })
-#     j <- which(as.vector(z, mode="numeric") == min(as.vector(z, mode="numeric")))
-#     advs2[[i]] <- adv[[i]][[1]][j] }
-#   else {advs2[[i]] <- adv[[i]]}
-# }
-
-
+advs2 <- list()
+for (i in 1:length(adv)) {
+  if (length(adv[[i]][[1]]) > 1) {
+    z <- llply(adv[[i]][[1]], function(x) {
+      dist(rbind(x[-11], og[[i]][2:11]))
+    })
+    j <- which(as.vector(z, mode="numeric") == min(as.vector(z, mode="numeric")))
+    advs2[[i]] <- adv[[i]][[1]][j] }
+  else {advs2[[i]] <- adv[[i]]}
+}
 
 outcomeTrt <- function(x){
   x <- as.data.frame(as.matrix(x, ncol=10, nrow=1))
@@ -469,46 +349,39 @@ ogCtrlOutcome <- lapply(og, function(x) {
 ogOutcome <- lapply(og, function(x) {
   x[1] })
 
-ite <- list()
-bias <- list()
-for (i in 1:length(og)) {
-  if (og[[i]][12] == 0) {
-    ite[[i]] <- advTrtOutcome[[i]] - ogOutcome[[i]]
-    bias[[i]] <- ite[[i]] + .4
-  } else {
-    ite[[i]] <- ogOutcome[[i]] - advCtrlOutcome[[i]]
-    bias[[i]] <- ite[[i]] + .4
-  }}
 
-mean(unlist(ite))
-sd(unlist(ite))
-mean(unlist(bias))
-sd(unlist(bias))
+metrics(og,
+        ogOutcome,
+        advTrtOutcome,
+        advCtrlOutcome)
 
+ite <- metrics[[1]]
+bias <- metrics[[2]]
+sd <- metrics[[3]]
 
 # write.csv(adv, file="adv")
 # write.csv(og, file="og")
 
+metricsDF(og,
+        ogOutcome,
+        advTrtOutcome,
+        advCtrlOutcome)
+
+iteCF <- metricsCF[[1]]
+biasCF <- metricsCF[[2]]
+sdCF <- metricsCF[[3]]
+
 ```
+
 
 Model ITE
 
 ```{r}
-modelITE <- list()
-modelBias <- list()
-for (i in 1:length(og)) {
-  if (og[[i]][12] == 0) {
-    modelITE[[i]] <- ogTrtOutcome[[i]] - ogOutcome[[i]]
-    modelBias[[i]] <- modelITE[[i]] + .4
-  } else {
-    modelITE[[i]] <- ogOutcome[[i]] - ogCtrlOutcome[[i]]
-    modelBias[[i]] <- modelITE[[i]] + .4
-  }}
+modMet <- modMetrics(ogOutcome, ogTrtOutcome, ogCtrlOutcome) 
 
-mean(unlist(modelITE))
-sd(unlist(modelITE))
-mean(unlist(modelBias))
-sd(unlist(modelBias))
+modelITE <- modMet[[1]]
+modelBias <- modMet[[2]]
+modelSD <- modMet[[3]]
 
 gsITE <- cbind(advPS, advTrtOutcome, ogTrtOutcome, advCtrlOutcome, ogCtrlOutcome, ogTrtOutcome, ogOutcome, ite, bias, modelITE, modelBias)
 # write.csv(gsITE, file="gsITE")
@@ -516,13 +389,9 @@ gsITE <- cbind(advPS, advTrtOutcome, ogTrtOutcome, advCtrlOutcome, ogCtrlOutcome
 
 
 
-Matching
+CEM Matching (not working)
 
 ```{r}
-##############
-### No cat ###
-##############
-
 formula.matching <- as.formula("trt1 ~ x1 + x2 + x3 + x4 + x5 + x6 + x7")
 psdat <- df1[,-c(1, 9:11)]
 m.out.cem <- matchit(as.factor(trt1) ~ x1 + x2 + x3 + x4 + x5 + x6 + x7, data = psdat, method = "cem")
@@ -553,63 +422,26 @@ FullData <- psdat
 # 
 # cemBias <- as.numeric(ite)+.4
 # describe(cemBias)
+```
 
 
-# Nearest neighbor matching
+Nearest neighbor matching
+
+```{r}
 m.out.nn <- matchit(trt1~x1 + x2 + x3 + x4 + x5 + x6 + x7, data=dftest1[,-c(1, 9:11)], method="nearest", replace=TRUE)
 nnmx <- m.out.nn$match.matrix
 nnDta <- match.data(m.out.nn)
 
-iteNN <- rep(NA, length(indices))
-nnBias <- rep(NA, length(indices))
-for (i in 1:length(indices)){
-  if (dftest1[i, 12] == 1) {
-    iteNN[i] <- dftest1[i, 1] - dftest1[nnmx[i,], 1] 
-    nnBias[i] <- as.numeric(iteNN[i]) + .4 }
-  else {
-    iteNN[i] <- dftest1[nnmx[i,], 1]-dftest1[i, 1]
-    nnBias[i] <- as.numeric(iteNN[i]) + .4
-  }}
+nnMet <- nnMetrics(dftest1, nnmx)
+iteNN <- nnMet[[1]]
+biasNN <- nnMet[[2]]
+sdNN <- nnMet[[3]]
 
-
-summary(as.numeric(iteNN))
-mean(nnBias)
-sd(nnBias)
-
-nnITE <- cbind(iteNN, nnBias)
+nnITE <- cbind(iteNN, biasNN)
 write.csv(nnITE, "nnITE.csv")
 write.csv(nnDta, "nnDta.csv")
 write.csv(nnmx, "nnmx.csv")
-
-
-# estTrt <- function(original, counterfactual) {
-#   if (original$trt == 1) {
-#     y.trt = original$y
-#     y.ctrl <- b0 + b1*counterfactual[, 1] + b2*counterfactual[, 2] + b3*counterfactual[, 3] + b4*counterfactual[, 4] + b5*counterfactual[, 8] + b6*counterfactual[, 9] + b7*counterfactual[, 10] + counterfactual[,11]
-#   }
-#   else {
-#     y.trt <- b0 + b1*original[, 1] + b2*original[, 2] + b3*original[, 3] + b4*original[, 4] + b5*original[, 8] + b6*original[, 9] + b7*original[, 10] + gamma + original[,11]
-#     y.ctrl=counterfactual$y 
-#   }
-#   y.trt-y.ctrl
-# }
-# 
-# estTrt(orig, counterfactual)
-# 
-# i<-orig # y_treatment=-1.963324; ctrl = -1.563324 (-0.4)
-# -1.963324 + 1.563324
-# i=match # y=-1.738147
-# -1.963324 + 1.738147
-# 
-# # treated
-# y.orig <- b0 + b1*i[, 1] + b2*i[, 2] + b3*i[, 3] + b4*i[, 4] + b5*i[, 8] + b6*i[, 9] + b7*i[, 10] + gamma*i$trt+ i[,11]
-# 
-# # countrol
-# y.orig <- b0 + b1*i[, 1] + b2*i[, 2] + b3*i[, 3] + b4*i[, 4] + b5*i[, 8] + b6*i[, 9] + b7*i[, 10] + i[,11]
-
 ```
-
-plot
 
 ```{r}
 nnITE2 <- as.data.frame(nnITE, ncol=2)
@@ -628,4 +460,5 @@ iteOverall <- as.data.frame(rbind(nnITE2, tcITE, gsITE))
 
 write.csv(iteOverall, "iteOverall.csv")
 ```
+
 
