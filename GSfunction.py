@@ -91,11 +91,11 @@ def generate_inside_ball(center, d, propensityIndex, outcomeIndex, segment, n=10
             out.append(sum(map(lambda x: x**2, o))**(0.5)) #Euclidean norm
         return np.array(out)
             #loop through elements of v, take the square root of the sum of their squares and append to array 'out'      
-    z = nprand.normal(0, 1, (n, 10)) 
+    z = nprand.normal(0, 1, (n, d)) 
 # n*d normal samples with mean 0 and SD 1
     # d = number of columns in X
     #print("ball segment", segment)
-    z2 = np.array([a * b / c for a, b, c in zip(z, nprand.uniform(*segment, n)**(1/float(10)),  norm(z))])
+    z2 = np.array([a * b / c for a, b, c in zip(z, nprand.uniform(*segment, n)**(1/float(d)),  norm(z))])
 # prbability integral transform?
     # unit vector of z * (uniform ** (1/float(d)))
     #print("z:", z.shape, "center", center.shape)
