@@ -1,0 +1,38 @@
+---
+output: pdf_document
+---
+
+\linespread{1}\selectfont
+
+\vspace*{1.75 cm}
+
+\begin{centering}
+
+\Large
+INVERSE CLASSIFICATION FOR APPROXIMATING COUNTERFACTUALS FOR ESTIMATION OF INDIVIDUAL TREATMENT EFFECT
+
+\vspace{1.75 cm}
+
+\normalsize
+Stella Veazey
+
+\vspace{1 cm}
+B.A., University of Colorado, 2012
+M.Sc., Universitat Pompeu Fabra/Universitat Autònoma de Barcelona, 2015
+
+\vspace{1.75 cm}
+
+\normalsize
+A thesis submitted to the \break
+Faculty of the Graduate School of the \break
+University of Colorado in partial fulfillment \break
+of the requirements for the degree of \break
+Master of Science \break
+Biostatistics Program \break
+2019
+
+
+\end{centering}
+
+\linespread{1.6}\selectfont
+

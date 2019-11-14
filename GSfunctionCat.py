@@ -3,7 +3,7 @@
 """
 Created on Tue Aug 27 11:16:37 2019
 
-@author: stellaveazey based on algorithm & code by Laugel
+@author: stellaveazey
 """
 # GS Propensity model
 
@@ -91,11 +91,11 @@ def generate_inside_ball(center, d, propensityIndex, outcomeIndex, segment, n=10
             out.append(sum(map(lambda x: x**2, o))**(0.5)) #Euclidean norm
         return np.array(out)
             #loop through elements of v, take the square root of the sum of their squares and append to array 'out'      
-    z = nprand.normal(0, 1, (n, d)) 
+    z = nprand.normal(0, 1, (n, 10)) 
 # n*d normal samples with mean 0 and SD 1
     # d = number of columns in X
     #print("ball segment", segment)
-    z2 = np.array([a * b / c for a, b, c in zip(z, nprand.uniform(*segment, n)**(1/float(d)),  norm(z))])
+    z2 = np.array([a * b / c for a, b, c in zip(z, nprand.uniform(*segment, n)**(1/float(10)),  norm(z))])
 # prbability integral transform?
     # unit vector of z * (uniform ** (1/float(d)))
     #print("z:", z.shape, "center", center.shape)
@@ -161,7 +161,6 @@ def seek_ennemies2(X, y, treat, score_function, obs_to_interprete, n_layer, step
     #print(step)
     score_function_CLASS = treat[idx]
     ennemies = []
-    step=1/100.
     #fe, dfe = distance_first_ennemy(X_orig, obs_to_interprete, score_function)
     #print("the dfe", dfe)
     step1 = dfe * step
@@ -177,51 +176,47 @@ def seek_ennemies2(X, y, treat, score_function, obs_to_interprete, n_layer, step
             catidx.append(X.columns.get_loc(c))
         catidx = np.asarray(catidx)
         for p in np.arange(len(catdat.index)):
-            print(p)
             ennemies = []
-            step0=step1
-            a0, a1 = 0, step0
+            step=step1
+            a0, a1 = 0, step
             i=0
             #print("cat index=", p, "of", len(catdat.index))
             #print("a0, a1, step", a0, a1, step)
-            layer_ = generate_layer_with_score_function(X, score_function, obs_to_interprete, d=X.shape[1], n=n_layer, segment=(a0, a1), propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, catidx=catidx, catdat=catdat.iloc[p,:])
+            layer_ = generate_layer_with_score_function(X, score_function, obs_to_interprete, d=X.shape[1], n=n_layer, segment=(a0, a1), propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, catidx=catidx, catdat=p)
             layer_enn = [x for x in layer_ if x[-1] == 1-score_function_CLASS]
             j=0
-            while len(layer_enn) > 0 and (p in adversaries) == False:
-                if j == 50 and len(layer_enn) == 10000:
+            while len(layer_enn) > 0 and (len(adversaries[p]) < 1 or p in adversaries == False):
+                if j == 1000 and len(layer_enn) == 10000:
                      D = pairwise_distances(layer_[:,outcomeIndex], pd.DataFrame(obs_to_interprete[outcomeIndex]).values.reshape(1, -1), metric='euclidean')
-                     idxes = sorted(enumerate(D), key=lambda x:x[1])
-                     i = idxes[0][0]
-                     ennemies.extend([layer_[i,:]])
-                     adversaries[p] = layer_[i,:]
+                     idxes = sorted(enumerate(D), key=lambda x:x[1]) 
+                     adversaries[p] = [idxes[0]]
                 #print('step pre divide', step)
-                step0 = step0 / 100.0
+                step = step / 100.0
                 #print('step post divide', step)
-                a1 = a1/10.0
+                a1 = a1/100
                 #print("begin layer with score_function in while loop 1", a0, a1)
-                layer_ = generate_layer_with_score_function(X, score_function, obs_to_interprete, d=X.shape[1], n=n_layer, segment=(a0, a1), propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, catidx=catidx, catdat=catdat.iloc[p,:])
+                layer_ = generate_layer_with_score_function(X, score_function, obs_to_interprete, d=X.shape[1], n=n_layer, segment=(a0, a1), propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, catidx=catidx, catdat=p)
                 layer_enn = [x for x in layer_ if x[-1]== 1-score_function_CLASS]
                 j += 1
                 #print('zoom in')
             else:
-                step0=step1
                 while len(ennemies) < 1:
                     #print("begin layer with score_function in else while loop 1")
-                    layer_ = generate_layer_with_score_function(X, score_function, obs_to_interprete, d=X.shape[1], n=n_layer, segment=(a0, a1), propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, catidx=catidx, catdat=catdat.iloc[p,:])
+                    layer_ = generate_layer_with_score_function(X, score_function, obs_to_interprete, d=X.shape[1], n=n_layer, segment=(a0, a1), propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, catidx=catidx, catdat=p)
                     #print("end layer with score_function in else while loop")
                     layer_enn = [x for x in layer_ if x[-1] == 1-score_function_CLASS]
                     ennemies.extend(layer_enn)
                     i += 1
-                    a0 += step0
-                    a1 += step0
+                    a0 += step
+                    a1 += step
                     #print('zoom out', 'step:', step)
-                adversaries[p] = layer_enn
+                    adversaries[p] = layer_enn
         #print("adversaries", adversaries)
         return adversaries
     else:
         ennemies = []
-        step0 = step1
-        a0, a1 = 0, step0
+        step = step1
+        a0, a1 = 0, step
         i=0
         layer_, seg, zmean = generate_layer_with_score_function(X, score_function, obs_to_interprete, d=X.shape[1], n=n_layer, segment=(a0, a1), propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, catidx=None, catdat=None) # Using covariates that score_functionict outcome; n_layer=10000
         #print("end layer with score_function")
@@ -237,7 +232,7 @@ def seek_ennemies2(X, y, treat, score_function, obs_to_interprete, n_layer, step
                 f = 1
                 layer_enn = []
             else:
-                step0 = step0 / 100.0
+                step = step / 100.0
                 a1 = a1/100
                 layer_, seg, zmean = generate_layer_with_score_function(X, score_function, obs_to_interprete, d=X.shape[1], n=n_layer, segment=(a0, a1), propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, catidx=None, catdat=None)
                 layer_enn = [x for x in layer_ if x[-1] == 1-score_function_CLASS]
@@ -251,13 +246,13 @@ def seek_ennemies2(X, y, treat, score_function, obs_to_interprete, n_layer, step
                 layer_enn = [x for x in layer_ if x[-1] == 1-score_function_CLASS]
                 ennemies.extend(layer_enn)
                 i += 1
-                if i == 5000:
+                if i == 3000:
                     sys.exit(zmean) 
-                a0 += step0
-                a1 += step0
+                a0 += step
+                a1 += step
                 #print('zoom out') 
     #print('Final nb of iterations ', i, 'Final radius', (a0, a1))
-        return ennemies
+    return ennemies
             
             
     
@@ -266,7 +261,7 @@ def seek_ennemies2(X, y, treat, score_function, obs_to_interprete, n_layer, step
     
 
 
-def growing_sphere_explanation(X, y, treat, score_function, obs_to_interprete, fe, dfe, propensityIndex, outcomeIndex,  idx, n_layer=10000, step=1/100000.0, enough_ennemies=1, moving_cost=l2, cat=None, catdat=None):
+def growing_sphere_explanation(X, y, treat, score_function, obs_to_interprete, fe, dfe, propensityIndex, outcomeIndex,  idx, n_layer=10000, step=1/100000000.0, enough_ennemies=1, moving_cost=l2, cat=None, catdat=None):
     #print("begin seek_ennemies2")
     ennemies = seek_ennemies2(X, y, treat, score_function, obs_to_interprete, n_layer, step, enough_ennemies, fe, dfe, propensityIndex, outcomeIndex, idx, cat, catdat)
     print("ennemies type", type(ennemies))
@@ -275,26 +270,11 @@ def growing_sphere_explanation(X, y, treat, score_function, obs_to_interprete, f
     #print("enemies:", ennemies)
     #print("adversaries:", ennemies)
     if cat != None:
-       mc = []
-       dist = []
-       for u in np.arange(len(ennemies)):
-           nearest_ennemy = sorted(ennemies[u], key=lambda x: moving_cost(pd.DataFrame(obs_to_interprete).iloc[propensityIndex].values, ennemies[u][0][propensityIndex]))[0][:-1]
-           mc.append(nearest_ennemy)
-           dist.append(moving_cost(pd.DataFrame(obs_to_interprete).iloc[propensityIndex].values, nearest_ennemy[propensityIndex]))
-       nearest_idx = dist.index(min(dist))
-       nearest_ennemy = mc[nearest_idx]
-#           if hasattr(ennemies[u][0], "__len__"):
-#               dist0 = []
-#               for v in np.arange(len(ennemies[u])):
-#                   dist0.append(moving_cost(obs_to_interprete[propensityIndex], ennemies[u][v][propensityIndex]))
-#               nearest_idx0 = dist0.index(min(dist0))
-#               dist.append(min(dist0))
-#               mc.append(ennemies[u][nearest_idx0])
-#           else:
-#               dist.append(moving_cost(obs_to_interprete[propensityIndex], ennemies[u][propensityIndex]))
-#               mc.append(ennemies[u][0])
-#       nearest_idx = dist.index(min(dist))
-#       nearest_ennemy = mc[nearest_idx]
+        mc = []
+        for u in np.arange(len(ennemies)):
+            mc.append(moving_cost(pd.DataFrame(obs_to_interprete).iloc[propensityIndex].values, ennemies[u][0][propensityIndex]))
+        nearest_idx = mc.index(min(mc))
+        nearest_ennemy = ennemies[nearest_idx][0][:-1]
     else:
         nearest_ennemy = sorted(ennemies, key=lambda x: moving_cost(pd.DataFrame(obs_to_interprete).iloc[propensityIndex].values, ennemies[0][propensityIndex]))[0][:-1]
     #print(nearest_ennemy)
@@ -304,9 +284,9 @@ def growing_sphere_explanation(X, y, treat, score_function, obs_to_interprete, f
 def gs_main(X, y, treat, score_function, obs_to_interprete, propensityIndex, outcomeIndex, cat, idx, **kwargs):
     sparseAdv = []
     #layers = []
-    print("Start distance_first_enemy")
+    #print("Start distance_first_enemy")
     dfe, fe = distance_first_ennemy2(X=X, observation=obs_to_interprete, propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, score_function=score_function, treat=treat, idx=idx, n=1, cat=cat)
-    print("End distance_first_enemy fe:", fe, "dfe:", dfe)     
+    #print("End distance_first_enemy fe:", fe, "dfe:", dfe)     
     if cat != None:
         Xcat = pd.DataFrame(X)[cat]
         XcatUnique = pd.DataFrame()
@@ -329,7 +309,7 @@ def gs_main(X, y, treat, score_function, obs_to_interprete, propensityIndex, out
                 #print("DF", j, "has shape", dfs[j].shape)
                 dat=dfs[j]
                 #print("begin gs_explanation")
-                step=1
+                step=1/100000.0
                 enn = growing_sphere_explanation(X=dat, y=y, treat=treat, score_function=score_function, obs_to_interprete=obs_to_interprete, propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, idx=idx, cat=cat, fe=fe, dfe=dfe, catdat=XcatExpand, step=step)
                 #print("end growing_sphere_explanataion")
     #enn = nearest enemy
@@ -342,7 +322,7 @@ def gs_main(X, y, treat, score_function, obs_to_interprete, propensityIndex, out
         enn = growing_sphere_explanation(X, y, treat, score_function=score_function, obs_to_interprete=obs_to_interprete, propensityIndex=propensityIndex, outcomeIndex=outcomeIndex, idx=idx, cat=cat, fe=fe, dfe=dfe, step=step)
         sparseAdv.append(featred_random(obs_to_interprete, treat, enn, propensityIndex, outcomeIndex, score_function, idx))
         #layers.append(uni_layer)
-    return sparseAdv
+    return enn, sparseAdv
 
 
 # DEFINE function that returns euclidean distance, the number of moves (number of different features) and the Pearson R2 between the observation of interest and nearest adversary
@@ -419,7 +399,7 @@ def distance_first_ennemy2(X, observation, propensityIndex, outcomeIndex, score_
                 while len(out) < 1 and k < len(idxes):
                     i = idxes
                     #if psm.score_functionict(dat.iloc[i[k][0], 0:10].values.reshape(1, -1))[0] != psm.score_functionict(observation[0:10].reshape(1, -1))[0]:
-                    if np.round(score_function(np.asarray(X)[i[k][0],:].reshape(1, -1))) != treat[idx]:
+                    if np.round(score_function(X.iloc[i[k][0],:].values)) != treat[idx]:
                         out.append(X.iloc[i[k][0],:])
                         dists.append(pairwise_distances(X.iloc[i[k][0],outcomeIndex].values.reshape(1, -1), pd.DataFrame(observation[outcomeIndex]).values.reshape(1, -1), metric='euclidean')[0][0])
                         dist_dct[j] = dists

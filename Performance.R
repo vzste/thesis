@@ -28,12 +28,6 @@ use_python(path_to_python)
 
 
 
-
-
-
-
-
-
 # og: original observations
 # ogOutcome: outcomes for original observations
 # advTrtOutcome: predicted treated counterfactual outcomes

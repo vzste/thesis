@@ -119,6 +119,14 @@ sims <- function(sigma, n=10000, dichotomize = c(1, 3, 6, 8, 9), outcomeMethod =
     x$y1 <-
       b0 + b1 * x[, 1] + b2 * x[, 2] + b3 * x[, 3] + b4 * x[, 4] + b5 * x[, 8] + b6 *
       x[, 9] + b7 * x[, 10] + b2 * x[, 2] * x[, 2] + b4 * x[, 4] * x[, 4] + b7 *
+      x[, 10] * x[, 10] + gamma * x$trt1 + x$error
+  }
+  
+  # scenario D: Nonlinearity and Nonadditivity (moderate)
+  if (outcomeMethod == "nonaddlin") {
+    x$y1 <-
+      b0 + b1 * x[, 1] + b2 * x[, 2] + b3 * x[, 3] + b4 * x[, 4] + b5 * x[, 8] + b6 *
+      x[, 9] + b7 * x[, 10] + b2 * x[, 2] * x[, 2] + b4 * x[, 4] * x[, 4] + b7 *
       x[, 10] * x[, 10] + 0.5 * b1 * x[, 1] * x[, 3] + 0.7 * b2 * x[, 2] * x[, 4] + 0.5 *
       b3 * x[, 3] * x[, 8] + 0.7 * b4 * x[, 4] * x[, 9] + 0.5 * b5 * x[, 8] *
       x[, 10] + 0.5 * b1 * x[, 1] * x[, 9] + 0.7 * b2 * x[, 2] * x[, 3] + 0.5 *
